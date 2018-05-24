@@ -62,6 +62,7 @@ func main() {
 	natsAddress := "nats"
 	gatewayAddress := "gateway"
 	functionSuffix := ""
+	minuteman_functions := false
 	var debugPrintBody bool
 
 	if val, exists := os.LookupEnv("faas_nats_address"); exists {
@@ -78,6 +79,10 @@ func main() {
 
 	if val, exists := os.LookupEnv("faas_print_body"); exists {
 		debugPrintBody = val == "1" || val == "true"
+	}
+
+	if _, exists := os.LookupEnv("use_minuteman_functions"); exists {
+		minuteman_functions = true
 	}
 
 	var durable string
@@ -108,7 +113,15 @@ func main() {
 			return
 		}
 
-		fmt.Printf("Request for %s.\n", req.Function)
+		funcName := req.Function
+
+		//TODO - currently assuming that VIPs will be off of /faas/functions/<funcName>:8080, make this configurable
+		// TODO -- if this function fails, it crashes the service, handle failure better
+		if minuteman_functions {
+			funcName = fmt.Sprintf("faasfunctions%s.marathon.l4lb.thisdcos.directory", funcName)
+		}
+
+		fmt.Printf("Request for %s.\n", funcName)
 		if debugPrintBody {
 			fmt.Println(string(req.Body))
 		}
@@ -118,7 +131,7 @@ func main() {
 			queryString = fmt.Sprintf("?%s", strings.TrimLeft(req.QueryString, "?"))
 		}
 
-		functionURL := fmt.Sprintf("http://%s%s:8080/%s", req.Function, functionSuffix, queryString)
+		functionURL := fmt.Sprintf("http://%s%s:8080/%s", funcName, functionSuffix, queryString)
 
 		request, err := http.NewRequest(http.MethodPost, functionURL, bytes.NewReader(req.Body))
 		defer request.Body.Close()
