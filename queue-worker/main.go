@@ -16,6 +16,8 @@ import (
 
 	"net/http"
 
+	"regexp"
+
 	"github.com/nats-io/go-nats-streaming"
 	"github.com/openfaas/faas/gateway/queue"
 )
@@ -53,6 +55,8 @@ func main() {
 
 	clusterID := "faas-cluster"
 	val, _ := os.Hostname()
+	var re = regexp.MustCompile(`[^a-zA-Z0-9_-]`)
+	val = re.ReplaceAllString(val, `-`)
 	clientID := "faas-worker-" + val
 
 	natsAddress := "nats"
